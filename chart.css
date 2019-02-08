@@ -1,0 +1,7 @@
+/* CSS */
+.x-axis path,.x-axis line
+{
+	fill:none;
+	stroke:#000;
+	shape-rendering: crispEdges;
+}

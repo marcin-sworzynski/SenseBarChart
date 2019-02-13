@@ -6,6 +6,7 @@ define(["d5"],function(d3){
 			
 			
 			
+			var valArray=new Array();
 			var margin={top:20,right:20,bottom:30,left:140};
 			width=width-margin.left-margin.right;
 			height=height-margin.top-margin.bottom;
@@ -25,12 +26,11 @@ define(["d5"],function(d3){
 					.range([0,width]);
 				
 			var y=d3.scaleBand()
-					.domain(data.map(function(d){return d.dim1}))
+					.domain(data.map(function(d){return d.dim1.txt}))
 					.range([0,height])
 					.padding(0.3);
 					
-			console.log(d3);
-						
+									
 			/* chart layout 
 			h- horizontal bar chart 
 			v- vertical bar chart */
@@ -51,17 +51,24 @@ define(["d5"],function(d3){
 					.enter()
 					.append('rect')
 					.attr('x','0')
-					.attr('y',function(d){return y(d.dim1)})
+					.attr('y',function(d){return y(d.dim1.txt)})
 					.attr('height',y.bandwidth())
 					.attr('width',function(d){return x(d.msr1)})
+					.on('click',function(d){
+						
+						valArray.push(d.dim1.num);
+						console.log(valArray);
+						bcknd.selectValues(0,valArray,true);
+					})
 				
 				svg.selectAll('.lbl')
 					.data(data)
 					.enter()
 					.append('text')
 					.attr('x',function(d){return x(d.msr1)})
-					.attr('y',function(d){return y(d.dim1)+(y.bandwidth())})
-					.text(function(d){return d.msr1});
+					.attr('y',function(d){return y(d.dim1.txt)+(12+(y.bandwidth()-12)/2)})
+					.text(function(d){return d.msr1})
+					.attr('class','lbls');
 				
 				
 				svg.append('g')
@@ -71,15 +78,7 @@ define(["d5"],function(d3){
 				svg.append('g')
 					.attr('class','y-axis')
 					.call(yAxis);
-					
-				//display/not display value labels on top of the bars
-				if(valueLabels){
-					bar.append('text')
-						.attr('x',function(d){return x(d.msr1)-3})
-						.attr('y',barHeight/2)
-						.attr('dy','.35em')
-						.text(function(d){return d.msr1});		
-				}					
+								
 			}
 			else{		
 				bar.attr('transform',function(d,i){return 'translate('+i*barWidth+",0)";})

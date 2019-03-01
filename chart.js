@@ -1,114 +1,148 @@
-// JavaScript
-define(["jquery","d5"],function($,d3){
+require.config({
+	paths:{
+		"d5":"https://d3js.org/d3.v5.min"
+	},
+	waitSeconds:20 
+
+});
+
+var bcknd={};
+var self={};
+
+
+define( [ "jquery","d3","./drawChart","css!./chart.css"
+],
+function ($,d3,d) {
 
 	return {
-		drawChart: function(data,measureLabels,width,height,id,valueLabels,chartLayout){
-			
-			var refBarHeight=3 //define height of the reference bar
-			
-			var valArray=new Array();
-			var margin={top:20,right:20,bottom:30,left:140};
-			width=width-margin.left-margin.right;
-			height=height-margin.top-margin.bottom;
-		
-			
-			var div=d3.select('#'+id)
-						.append('div')
-						.attr('class','tooltip')
-						.style('position','absolute')
-						.style('opacity',0);
-			
-			var svg=d3.select('#'+id)
-					.append("svg")
-					.attr("width",width+margin.left+margin.right)
-					.attr("height",height+margin.top+margin.bottom)
-					.append('g')
-					.attr("transform","translate("+margin.left+","+margin.top+")");
-			
-						
-
-			/***** construct scales ************************/
-			var x=d3.scaleLinear()
-					.domain([0,d3.max(data,function(d){return d.msr1;})])
-					.range([0,width-20]);
-			var x2=d3.scaleLinear()
-					.domain([0,d3.max(data,function(d){return d.msr2})])
-					.range([0,width-20]);
-				
-			var y=d3.scaleBand()
-					.domain(data.map(function(d){return d.dim1.txt}))
-					.range([0,height])
-					.padding(0.3);
-					
-				
-						
-				var xAxis=d3.axisBottom()
-							.scale(x)
-							.tickSize(1);
-							
-				var yAxis=d3.axisLeft()
-							.scale(y)
-							.tickSize(1);
-							
-				svg.selectAll('.bar')
-					.data(data)
-					.enter()
-					.append('rect')
-					.attr('x','0')
-					.attr('y',function(d){return y(d.dim1.txt)})
-					.attr('height',y.bandwidth())
-					.attr('width',function(d){return x(d.msr1)})
-					.attr('class','bar')
-					.on('mouseover',function(d){							//display pop-ups on mouseover event on chart bar
-						div.html('<p>'+d.dim1.txt+'</p><p>'+measureLabels[0]+' : '+d.msr1+'</p>')
-							.style('left',(x(d.msr1)+margin.left)/2+'px')   //calculate the x position the half way of chart bar (margin.left+bar.width)/2 
-							.style('top',(y(d.dim1.txt)-50)+'px')
-							.style('opacity',.9);
-					})
-					.on('mouseout',function(d){
-						div.style('opacity',0)
-					})
-					.on('click',function(d){					
-						self.selectValues(0,[d.dim1.num],true)
-					});
-
-			 	//create compare bars
-				svg.selectAll('.bar-ref')
-					.data(data)
-					.enter()
-					.append('rect')
-					.attr('x',0)
-					.attr('y',function(d){return y(d.dim1.txt)+y.bandwidth()/2-refBarHeight/2})
-					.attr('height',refBarHeight)
-					.attr('width',function(d){return x2(d.msr2)})
-					.attr('class','bar-ref');
-				if(valueLabels){
-					svg.selectAll('.lbl')
-						.data(data)
-						.enter()
-						.append('text')
-						.attr('x',function(d){return x(d.msr1)})
-						.attr('y',function(d){return y(d.dim1.txt)+(12+(y.bandwidth()-12)/2)})
-						.text(function(d){return d.msr1})
-						.attr('class','lbls')
-						.attr('dx','.2em');				
+		support : {
+			snapshot: true,
+			export: true,
+			exportData : false
+		},
+		initialProperties:{
+			qHyperCubeDef:{
+				qDimensions:[],
+				qMeasures:[],
+				qInitialDataFetch:[{
+					qWidth:4,
+					qHeight:500
+				}]
+			},
+			selectionMode:"CONFIRM"
+		},
+		definition:{
+			type:"items",
+			component:"accordion",
+			items:{
+				dimensions:{
+					uses:"dimensions",
+					min:1,
+					max:2
+				},
+				measures:{
+					uses:"measures",
+					min:2,
+					max:2
+				},
+				sorting:{
+					uses:"sorting"
+				},
+				appearance:{
+					uses:"settings",
+					items:{
+						chartType:{
+							type:"items",
+							label:"Presentation",
+							items:{
+								chartLayout:{
+									type:"string",
+									component:"buttongroup",
+									label:"Chart Layout",
+									ref:"chart.Layout",
+									options:[{
+										value:"v",
+										label:"Vertical",
+										tooltip:"Select vertical chart"
+									},{
+										value:"h",
+										label:"Horizontal",
+										tooltip:"Select horizontal chart"								
+									}		
+									]								
+								},
+								chartLabels:{
+									type:"boolean",
+									component:"switch",
+									label:"Value labels",
+									ref:"chart.valueLabels",
+									options:[{
+										value:true,
+										label:"On"
+									},{
+										value:false,
+										label:"Off"
+									}]								
+								},
+								colorPicker:{
+									label:"Measure 1 Color",
+									component:'color-picker',
+									ref:'msr1_color',
+									type:'integer',
+									defaultValue:3
+								}
+							}
+						}
+					}
 				}
-
-				
-				
-				svg.append('g')
-					.attr('class','x-axis')
-					.attr('transform','translate(0,'+height+')')
-					.call(xAxis);
-				svg.append('g')
-					.attr('class','y-axis')
-					.call(yAxis);
-	
-
-				
+			}
+		},
+		paint: function ($element,layout) {
+			//add your rendering code here
+			//$element.html( "Chart" );
+			//needed for export
+			//return qlik.Promise.resolve();
+			
+			bcknd=this.backendApi
+			self=this;
+			//console.log(this.selectValues(0,[5,10]));
+			//console.log(this.backendApi);
+			
+			var valueLabels=layout.chart.valueLabels;
+			var chartLayout=layout.chart.Layout //h - for horizontal chart, v- for vertical
+			
+			var qMatrix=layout.qHyperCube.qDataPages[0].qMatrix;
+			
+			var measureLabels=layout.qHyperCube.qMeasureInfo.map(function(d){
+				return d.qFallbackTitle;
+			});
+			var data=qMatrix.map(function(d){
+				return {
+					dim1:{num:d[0].qElemNumber,txt:d[0].qText},
+					msr1:d[1].qText,
+					msr2:d[2].qText
+				}
+			});
+			var width=$element.width();
+			var height=$element.height();
 			
 			
-				
+			var id="container_"+ layout.qInfo.qId;
+			if(document.getElementById(id)){
+				$('#'+id).empty();
+			}
+			else{
+				$element.append($('<div/>').attr('id',id).width(width).height(height).attr('postition','relative'));
+			}
+			console.log(layout);
+			d.drawChart(data,measureLabels,width,height,id,valueLabels,chartLayout);
+			
+
 		}
 	};
-});
+
+} );
+
+
+
+
